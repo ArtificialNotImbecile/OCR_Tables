@@ -59,9 +59,44 @@ class Image2Csv_CL:
                 fine_position.append(second)
         return fine_position
 
+    def determine_spike_position_col(self, values):
+        MAX = np.mean(sorted(values)[-2:])
+        sigma_choosen = 3,5
+        for sigma in range(1,5):
+            MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
+            rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
+            if 4 < len(rough_position_) < 20:
+                sigma_choosen = sigma
+        print(sigma_choosen)
+        MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
+        rough_position = np.where((values > MAX_95_CI_L)==True)[0]
+        fine_position = [rough_position[0]]
+        thd = np.mean(rough_position[1:]-rough_position[:-1])
+        for first, second in zip(rough_position[:-1],rough_position[1:]):
+            if  second - first > 15:
+                fine_position.append(second)
+        return fine_position
+
+    def determine_spike_position_row(self, values):
+        MAX = np.mean(sorted(values)[-2:])
+        sigma_choosen = 3.5
+        for sigma in range(1,10):
+            MAX_95_CI_L_ = MAX - sigma*0.5*np.sqrt(np.var(values))
+            rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
+            if len(rough_position_) < im.shape[0]/20:
+                sigma_choosen = sigma/2
+        MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
+        rough_position = np.where((values > MAX_95_CI_L)==True)[0]
+        fine_position = [rough_position[0]]
+        thd = np.mean(rough_position[1:]-rough_position[:-1])
+        for first, second in zip(rough_position[:-1],rough_position[1:]):
+            if  second - first > 15:
+                fine_position.append(second)
+        return fine_position
+
     def crop_image(self):
         # Crop images along col first
-        row_position, col_position = self.determine_spike_position(self.row_vals), self.determine_spike_position(self.col_vals)
+        row_position, col_position = self.determine_spike_position_row(self.row_vals), self.determine_spike_position_col(self.col_vals)
         #row_position.append() 0 position and end position
         if row_position[0] > 80:
             row_position.append(self.image.shape[0])
