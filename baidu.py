@@ -61,7 +61,7 @@ class Image2Csv_CL:
 
     def determine_spike_position_col(self, values):
         MAX = np.mean(sorted(values)[-2:])
-        sigma_choosen = 3.5
+        sigma_choosen = 2 #3.5 or 2? smaller one?
         for sigma in range(1,5):
             MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
@@ -78,7 +78,7 @@ class Image2Csv_CL:
 
     def determine_spike_position_row(self, values):
         MAX = np.mean(sorted(values)[-2:])
-        sigma_choosen = 3.5
+        sigma_choosen = 2# smaller one?
         for sigma in range(1,10):
             MAX_95_CI_L_ = MAX - sigma*0.5*np.sqrt(np.var(values))
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
