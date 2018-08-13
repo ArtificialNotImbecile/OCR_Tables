@@ -67,6 +67,7 @@ class Image2Csv_CL:
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
             if 4 < len(rough_position_) < 20:
                 sigma_choosen = sigma
+        print(sigma_choosen)
         MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
         rough_position = np.where((values > MAX_95_CI_L)==True)[0]
         fine_position = [rough_position[0]]
@@ -79,11 +80,12 @@ class Image2Csv_CL:
     def determine_spike_position_row(self, values):
         MAX = np.mean(sorted(values)[-2:])
         sigma_choosen = 2# smaller one?
-        for sigma in range(1,10):
-            MAX_95_CI_L_ = MAX - sigma*0.5*np.sqrt(np.var(values))
+        for sigma in range(1,5):
+            MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
             if len(rough_position_) < self.image.shape[0]/20:
-                sigma_choosen = sigma/2
+                sigma_choosen = sigma
+        print(sigma_choosen)
         MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
         rough_position = np.where((values > MAX_95_CI_L)==True)[0]
         fine_position = [rough_position[0]]
@@ -140,6 +142,21 @@ class Image2Csv_CL:
         df = df.replace('',np.nan).dropna(axis=1,how='all').dropna(axis=0,how='all')
         df.to_csv(csv_dir, index=None, header=False)
         print(f'Success, write to file:{csv_dir}')
+
+    def plot(self, fig_size = (15,20)):
+        g = plt.figure(figsize=fig_size)
+        plt.imshow(self.image, cmap='gray')
+        row_position, col_position = self.determine_spike_position_row(self.row_vals), self.determine_spike_position_col(self.col_vals)
+        if row_position[0] > 80:
+            row_position.append(self.image.shape[0])
+            row_position.insert(0,0)
+        if col_position[0] > 120:
+            col_position.append(self.image.shape[1])
+            col_position.insert(0,0)
+        for row in row_position:
+            plt.plot([0, self.image.shape[1]],[row, row], color='red', lw=2)
+        for col in col_position:
+            plt.plot([col, col],[0, self.image.shape[0]],color='red', lw=2)
 
 
 
