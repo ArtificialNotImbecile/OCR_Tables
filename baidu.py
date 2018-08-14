@@ -32,7 +32,8 @@ class Image2Csv_CL:
     #options["probability"] = "true"
 
     def __init__(self, image_file, hight_resolution=True):
-        im = imread(image_file)[:,:,0]
+        im_ = imread(image_file)
+        im = rgb2gray(im_)
         self.image = im
         self.image_dir = image_file
         val  = filters.gaussian(im)
@@ -65,7 +66,7 @@ class Image2Csv_CL:
         for sigma in range(1,5):
             MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
-            if 4 < len(rough_position_) < 20:
+            if 4 < len(rough_position_) < 20 and sorted([values[i] for i in rough_position_])[0] > MAX_95_CI_L_+50:
                 sigma_choosen = sigma
         print(sigma_choosen)
         MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
@@ -73,7 +74,7 @@ class Image2Csv_CL:
         fine_position = [rough_position[0]]
         thd = np.mean(rough_position[1:]-rough_position[:-1])
         for first, second in zip(rough_position[:-1],rough_position[1:]):
-            if  second - first > 15:
+            if  second - first > 30:
                 fine_position.append(second)
         return fine_position
 
@@ -83,15 +84,15 @@ class Image2Csv_CL:
         for sigma in range(1,5):
             MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
             rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
-            if len(rough_position_) < self.image.shape[0]/20:
+            if len(rough_position_) < self.image.shape[0]/20 and sorted([values[i] for i in rough_position_])[0] > MAX_95_CI_L_+50:
                 sigma_choosen = sigma
-        print(sigma_choosen)
+        #print(sigma_choosen)
         MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
         rough_position = np.where((values > MAX_95_CI_L)==True)[0]
         fine_position = [rough_position[0]]
         thd = np.mean(rough_position[1:]-rough_position[:-1])
         for first, second in zip(rough_position[:-1],rough_position[1:]):
-            if  second - first > 15:
+            if  second - first > 30: # what's the proper value?
                 fine_position.append(second)
         return fine_position
 
@@ -99,7 +100,7 @@ class Image2Csv_CL:
         # Crop images along col first
         row_position, col_position = self.determine_spike_position_row(self.row_vals), self.determine_spike_position_col(self.col_vals)
         #row_position.append() 0 position and end position
-        if row_position[0] > 80:
+        if row_position[0] > 80 or row_position[-1] < self.image.shape[0]-120:
             row_position.append(self.image.shape[0])
             row_position.insert(0,0)
         if col_position[0] > 120:
@@ -147,18 +148,21 @@ class Image2Csv_CL:
         g = plt.figure(figsize=fig_size)
         plt.imshow(self.image, cmap='gray')
         row_position, col_position = self.determine_spike_position_row(self.row_vals), self.determine_spike_position_col(self.col_vals)
-        if row_position[0] > 80:
-            row_position.append(self.image.shape[0])
-            row_position.insert(0,0)
+        if row_position[0] > 80 or row_position[-1] < self.image.shape[0]-120:
+            row_position.append(self.image.shape[0]-3)
+            row_position.insert(0,3)
         if col_position[0] > 120:
-            col_position.append(self.image.shape[1])
-            col_position.insert(0,0)
+            col_position.append(self.image.shape[1]-3)
+            col_position.insert(0,3)
         for row in row_position:
             plt.plot([0, self.image.shape[1]],[row, row], color='red', lw=2)
         for col in col_position:
             plt.plot([col, col],[0, self.image.shape[0]],color='red', lw=2)
+        plt.show()
 
 
+def rgb2gray(rgb):
+    return np.round(np.dot(rgb[...,:3], [0.299, 0.587, 0.114]),3)
 
 if __name__ == '__main__':
     pass
