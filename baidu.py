@@ -14,7 +14,7 @@ import pandas as pd
 from aip import AipOcr
 
 
-
+#test
 
 
 class Image2Csv_CL:
