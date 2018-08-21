@@ -98,26 +98,46 @@ class Image2Csv_CL:
 
     def crop_image(self):
         # Crop images along col first
-        row_position, col_position = self.determine_spike_position_row(self.row_vals), self.determine_spike_position_col(self.col_vals)
-        #row_position.append() 0 position and end position
-        if row_position[0] > 80:
-            row_position.insert(0,3)
-        if row_position[-1] < self.image.shape[0]-120:
-            row_position.append(self.image.shape[0]-3)
+        col_position = self.determine_spike_position_col(self.col_vals)
+        # col_position.append() 0 position and end position
         if col_position[0] > 120:
             col_position.insert(0,3)
         if col_position[-1] < self.image.shape[1]-120:
             col_position.append(self.image.shape[1]-3)
-        self.table_shape = len(row_position)-1,len(col_position)-1,
-        vertival_slices = []
+        vertical_slices = []
         for first, second in zip(col_position[:-1],col_position[1:]):
-            vertival_slices.append(self.image[:,first:second])
-        # Crop vertical slices into chunks along row
+            vertical_slices.append(self.image[:,first:second])
+        # Crop vertical slices into chunks along row--different vetical_slice may contain diff rows
+        row_position_list = []
+        for vertical_slice in vertical_slices:
+            row_vals = list([sum(r) for r in 1-vertical_slice])
+            row_position = self.determine_spike_position_row(row_vals)
+            if row_position[0] > 80:
+                row_position.insert(0,3)
+            if row_position[-1] < self.image.shape[0]-80:
+                row_position.append(self.image.shape[0]-3)
+            row_position_list.append(row_position)
         cropped = []
-        for vertival_slice in vertival_slices:
-            for first, second in zip(row_position[:-1],row_position[1:]):
-                cropped.append(vertival_slice[first:second,:])
+        row_position_length = [len(rp) for rp in row_position_list]
+        self.table_shape = max(row_position_length)-1, len(col_position)-1
+        # If all columns have the same number of rows
+        if max(row_position_length)-min(row_position_length) == 0:
+            for vertical_slice, row_position in zip(vertical_slices, row_position_list):
+                for first, second in zip(row_position[:-1],row_position[1:]):
+                    cropped.append(vertical_slice[first:second,:])
+        else:
+            max_length_p = row_position_list[row_position_length.index(max(row_position_length))]
+            repeat_number_list = []
+            for row_position in row_position_list:
+                closest_index = [closest_value_index(i, max_length_p) for i in row_position]
+                repeat_number = [i-j for i,j in zip(closest_index[1:], closest_index[:-1])]
+                repeat_number_list.append(repeat_number)
+            for vertical_slice, row_position, repeat_number in zip(vertical_slices, row_position_list, repeat_number_list):
+                for first, second, repeat in zip(row_position[:-1], row_position[1:], repeat_number):
+                    for _ in range(repeat):
+                        cropped.append(vertical_slice[first:second,:])
         return cropped
+        
         #return np.array(cropped).reshape(len(col_position)-1,len(row_position)-1).T
         
     def image2words(self, image_array_2d):
@@ -130,6 +150,11 @@ class Image2Csv_CL:
             return ''
 
     def write_to_csv(self, output_dir):
+        df = self.image2df()
+        df.to_csv(output_dir, index=None, header=False)
+        print(f'Success, write to file:{output_dir}')
+    
+    def image2df(self):
         cropped = self.crop_image()
         container = np.zeros(self.table_shape, dtype=object)
         for col in range(self.table_shape[1]):
@@ -137,14 +162,10 @@ class Image2Csv_CL:
                 image = cropped[col*self.table_shape[0]+row]
                 words = self.image2words(image)
                 container[row, col] = words
-
         df = pd.DataFrame(data=container)
         #df.drop()
         df = df.replace('',np.nan).dropna(axis=1,how='all').dropna(axis=0,how='all')
-        df.to_csv(output_dir, index=None, header=False)
-        print(f'Success, write to file:{output_dir}')
-        
-
+        return df
 
     def plot(self, fig_size = (15,20)):
         g = plt.figure(figsize=fig_size)
@@ -185,7 +206,7 @@ class Image2Csv_CL:
         except:
             return False
         if len(rough_position) > self.image.shape[1]*0.7:
-        	return True
+            return True
 
         for first, second in zip(rough_position[:-1], rough_position[1:]):
             if second - first > 40:
@@ -227,24 +248,36 @@ class Image2Csv_CL:
         return a
 
     def plot_tables(self, fig_size = (15,20)):
+        try:
+            self.tables_p_dict
+        except:
+            self.set_tables_dict()
+        if self.tables_p_dict == {}:
+            print('Empty table in this page')
+            return None 
+        for key, value in self.tables_p_dict.items():
+            g = plt.figure(figsize = fig_size)
+            plt.imshow(self.image[ value[0]:value[-1] ], cmap='gray')
+            plt.show()
+    
+    def set_tables_dict(self):
         row_positions = self.determine_spike_position_row(self.row_vals)
         try:
             self.tables_p_dict
         except:
             self.tables_p_dict = self.get_tables_position(row_positions)
-        if self.tables_p_dict == {}:
-        	print('Empty table in this page')
-        	return None 
-        for key, value in self.tables_p_dict.items():
-            g = plt.figure(figsize = fig_size)
-            plt.imshow(self.image[ value[0]:value[-1] ], cmap='gray')
-            plt.show()
+    
 
 
 
 
 def rgb2gray(rgb):
     return np.round(np.dot(rgb[...,:3], [0.299, 0.587, 0.114]),3)
+
+def closest_value_index(a, b_list):
+    abs_ab = [abs(a-b) for b in b_list]
+    min_index = abs_ab.index(min(abs_ab))
+    return min_index
 
 if __name__ == '__main__':
     pass
