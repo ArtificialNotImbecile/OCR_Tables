@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from aip import AipOcr
 import urllib3
+import textract
+from pdf2image import convert_from_path
 urllib3.disable_warnings()
 
 #This part should be done by the user
@@ -79,22 +81,27 @@ class Image2Csv_CL:
         return fine_position
 
     def determine_spike_position_row(self, values):
-        MAX = np.mean(sorted(values)[-2:])
-        sigma_choosen = 2# smaller one?
-        for sigma in range(1,5):
-            MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
-            rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
-            if len(rough_position_) < self.image.shape[0]/20 and sorted([values[i] for i in rough_position_])[0] > MAX_95_CI_L_+50:
-                sigma_choosen = sigma
-        #print(sigma_choosen)
-        MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
-        rough_position = np.where((values > MAX_95_CI_L)==True)[0]
-        fine_position = [rough_position[0]]
-        thd = np.mean(rough_position[1:]-rough_position[:-1])
-        for first, second in zip(rough_position[:-1],rough_position[1:]):
-            if  second - first > 30: # what's the proper value?
-                fine_position.append(second)
-        return fine_position
+        try:
+            MAX = np.mean(sorted(values)[-2:])
+            sigma_choosen = 2# smaller one?
+            for sigma in range(1,5):
+                MAX_95_CI_L_ = MAX - sigma*np.sqrt(np.var(values))
+                rough_position_ = np.where((values > MAX_95_CI_L_)==True)[0]
+                #print(rough_position_)
+                if len(rough_position_) < self.image.shape[0]/20 and sorted([values[i] for i in rough_position_])[0] > MAX_95_CI_L_+50:
+                    sigma_choosen = sigma
+            #print(sigma_choosen)
+            MAX_95_CI_L = MAX - sigma_choosen*np.sqrt(np.var(values))
+            rough_position = np.where((values > MAX_95_CI_L)==True)[0]
+            fine_position = [rough_position[0]]
+            thd = np.mean(rough_position[1:]-rough_position[:-1])
+            for first, second in zip(rough_position[:-1],rough_position[1:]):
+                if  second - first > 30: # what's the proper value?
+                    fine_position.append(second)
+            return fine_position
+        except Exception as e:
+            #print(e)
+            return [0, self.image.shape[0]]
 
     def crop_image(self):
         # Crop images along col first
@@ -278,6 +285,24 @@ def closest_value_index(a, b_list):
     abs_ab = [abs(a-b) for b in b_list]
     min_index = abs_ab.index(min(abs_ab))
     return min_index
+
+def getPDFpages(path, keyword='接待时间'):
+    text = textract.process(path).decode('utf-8')
+    text_all_pages = text.split('\x0c')[:-1]
+    pages = []
+    for page, text in enumerate(text_all_pages):
+        if keyword in text:
+            pages.append(page)
+    return pages
+
+def pdf2image(path, pages, gray_scale=True):
+    imgs = convert_from_path(path, 300, fmt='png', first_page=pages[0]+1, last_page=pages[-1]+1)
+    im_list = [np.array(imgs[i])/255 for i in range(len(imgs))]
+    if not gray_scale:
+    	return im_list
+    else:
+	    im_gray_list = [rgb2gray(im) for im in im_list]
+	    return im_gray_list
 
 if __name__ == '__main__':
     pass
