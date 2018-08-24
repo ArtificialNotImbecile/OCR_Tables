@@ -133,7 +133,7 @@ class Image2Csv_CL:
             row_position = self.determine_spike_position_row(row_vals)
             if row_position[0] > 80:
                 row_position.insert(0,3)
-            if row_position[-1] < self.image.shape[0]-80:
+            if row_position[-1] < self.image.shape[0]-70:
                 row_position.append(self.image.shape[0]-3)
             row_position_list.append(row_position)
         cropped = []
@@ -308,7 +308,10 @@ def getPDFpages(path, keyword='接待时间'):
     return pages
 
 def pdf2image(path, pages, gray_scale=True):
-    imgs = convert_from_path(path, 300, fmt='png', first_page=pages[0]+1, last_page=pages[-1]+1)
+    if pages[-1] - pages[0]>10:
+        imgs = convert_from_path(path, 300, fmt='png', first_page=pages[0]+1, last_page=pages[0]+1)
+    else:
+        imgs = convert_from_path(path, 300, fmt='png', first_page=pages[0]+1, last_page=pages[-1]+1)
     im_list = [np.array(imgs[i])/255 for i in range(len(imgs))]
     if not gray_scale:
     	return im_list
