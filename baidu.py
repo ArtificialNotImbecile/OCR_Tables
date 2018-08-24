@@ -78,6 +78,18 @@ class Image2Csv_CL:
         for first, second in zip(rough_position[:-1],rough_position[1:]):
             if  second - first > 30:
                 fine_position.append(second)
+        # Should change 3,9 according to diff types of table
+        if 3 <= len(fine_position) <=9:
+            return fine_position
+        else:
+            rough_position = []
+            for col in range(self.image.shape[1]):
+                if self.is_col_position_valid(col, self.image):
+                    rough_position.append(col)
+            fine_position = [rough_position[0]]
+            for first, second in zip(rough_position[:-1],rough_position[1:]):
+                if  second - first > 30:
+                    fine_position.append(second)
         return fine_position
 
     def determine_spike_position_row(self, values):
