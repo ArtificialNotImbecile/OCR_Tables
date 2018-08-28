@@ -118,6 +118,8 @@ class Image2Csv_CL:
     def crop_image(self):
         # Crop images along col first
         col_position = self.determine_spike_position_col(self.col_vals)
+        # This info is useful for combine tables together
+        self.col_position = col_position
         # col_position.append() 0 position and end position
         if col_position[0] > 120:
             col_position.insert(0,3)
