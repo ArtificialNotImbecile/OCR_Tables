@@ -135,7 +135,7 @@ class Image2Csv_CL:
             row_position = self.determine_spike_position_row(row_vals)
             if row_position[0] > 80:
                 row_position.insert(0,3)
-            if row_position[-1] < self.image.shape[0]-70:
+            if row_position[-1] < self.image.shape[0]-35:
                 row_position.append(self.image.shape[0]-3)
             row_position_list.append(row_position)
         cropped = []
@@ -178,11 +178,17 @@ class Image2Csv_CL:
     def image2df(self):
         cropped = self.crop_image()
         container = np.zeros(self.table_shape, dtype=object)
-        for col in range(self.table_shape[1]):
-            for row in range(self.table_shape[0]):
-                image = cropped[col*self.table_shape[0]+row]
-                words = self.image2words(image)
-                container[row, col] = words
+        try:
+            for col in range(self.table_shape[1]):
+                for row in range(self.table_shape[0]):
+                    image = cropped[col*self.table_shape[0]+row]
+                    words = self.image2words(image)
+                    container[row, col] = words
+        except:
+            #print('len of cropped is :', len(cropped))
+            #print('self.table_shape is:', self.table_shape)
+            raise ValueError(f'length of cropped is: {len(cropped)}, but shape of table is: {self.table_shape}')
+
         df = pd.DataFrame(data=container)
         #df.drop()
         df = df.replace('',np.nan).dropna(axis=1,how='all').dropna(axis=0,how='all')
