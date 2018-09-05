@@ -35,7 +35,6 @@ class Image2Csv_CL:
     #options["detect_direction"] = "true"
     #options["detect_language"] = "true"
     #options["probability"] = "true"
-
     def __init__(self, im, hight_resolution=True):
         self.image = im
         val  = filters.gaussian(im)
@@ -47,21 +46,7 @@ class Image2Csv_CL:
         else:
             self.row_vals = list([sum(r) for r in clean_border  ])
             self.col_vals = list([sum(c) for c in clean_border.T])
-
-    def determine_spike_position(self, values):
-        MAX = np.mean(sorted(values)[-2:])
-        # This should be more flexible, consider 1-sigma, two-sigma and three-sigma. Then decide which one is the best.
-        # For example, 2-sigma we have 2 position and 3-sigma we hvae 4 position, and 3-sigma have 100 position. 
-        # Actually, if we want, say 
-        MAX_95_CI_L = MAX - 4*np.sqrt(np.var(values))
-        rough_position = np.where((values > MAX_95_CI_L)==True)[0]
-        fine_position = [rough_position[0]]
-        thd = np.mean(rough_position[1:]-rough_position[:-1])
-        for first, second in zip(rough_position[:-1],rough_position[1:]):
-            if  second - first > 15:
-                fine_position.append(second)
-        return fine_position
-
+    # Given col_sum values(self.col_vals), determine which column positions are lines of the table
     def determine_spike_position_col(self, values):
         MAX = np.mean(sorted(values)[-2:])
         sigma_choosen = 2 #3.5 or 2? smaller one?
@@ -91,7 +76,7 @@ class Image2Csv_CL:
                 if  second - first > 30:
                     fine_position.append(second)
         return fine_position
-
+    # Same Logic with determine_spike_position_col()
     def determine_spike_position_row(self, values):
         try:
             MAX = np.mean(sorted(values)[-2:])
@@ -114,7 +99,7 @@ class Image2Csv_CL:
         except Exception as e:
             #print(e)
             return [0, self.image.shape[0]]
-
+    # Crop image into cells defined by row&col positions
     def crop_image(self):
         # Crop images along col first
         col_position = self.determine_spike_position_col(self.col_vals)
@@ -128,7 +113,7 @@ class Image2Csv_CL:
         vertical_slices = []
         for first, second in zip(col_position[:-1],col_position[1:]):
             vertical_slices.append(self.image[:,first:second])
-        # Crop vertical slices into chunks along row--different vetical_slice may contain diff rows
+        # Crop vertical slices into chunks along row, different vetical_slice may contain diff rows
         row_position_list = []
         for vertical_slice in vertical_slices:
             row_vals = list([sum(r) for r in 1-vertical_slice])
@@ -146,6 +131,7 @@ class Image2Csv_CL:
             for vertical_slice, row_position in zip(vertical_slices, row_position_list):
                 for first, second in zip(row_position[:-1],row_position[1:]):
                     cropped.append(vertical_slice[first:second,:])
+        # This looks kind of tricky, but actually fairly simple
         else:
             max_length_p = row_position_list[row_position_length.index(max(row_position_length))]
             repeat_number_list = []
@@ -160,7 +146,7 @@ class Image2Csv_CL:
         return cropped
         
         #return np.array(cropped).reshape(len(col_position)-1,len(row_position)-1).T
-        
+    # API used to convert each cell of image to words, use baidu_ocr currently, see configuration in the beginning
     def image2words(self, image_array_2d):
         s, encoded_image = cv2.imencode('.png', np.uint8(image_array_2d*255))
         content = encoded_image.tobytes(order='C')
@@ -174,7 +160,7 @@ class Image2Csv_CL:
         df = self.image2df()
         df.to_csv(output_dir, index=None, header=False)
         print(f'Success, write to file:{output_dir}')
-    
+
     def image2df(self):
         cropped = self.crop_image()
         container = np.zeros(self.table_shape, dtype=object)
@@ -193,7 +179,7 @@ class Image2Csv_CL:
         #df.drop()
         df = df.replace('',np.nan).dropna(axis=1,how='all').dropna(axis=0,how='all')
         return df
-
+    # Plot row&col position determined by determine_spike_position_row/col() for DEBUG purpose
     def plot(self, fig_size = (15,20)):
         g = plt.figure(figsize=fig_size)
         plt.imshow(self.image, cmap='gray')
@@ -212,7 +198,7 @@ class Image2Csv_CL:
         for col in col_position:
             plt.plot([col, col],[0, self.image.shape[0]],color='red', lw=2)
         plt.show()
-
+    # Using different but simple approach to determine whether a position is valid line or not
     def is_col_position_valid(self, col_position, img):
         allPoints = [[col, row] for col in list([col_position]) for row in range(img.shape[0])]
         allPoints = np.array([point for point in allPoints if img[point[1], point[0]]<0.8])
@@ -220,7 +206,7 @@ class Image2Csv_CL:
             return True
         else:
             return False
-
+    # Judge whether an arean between two lines are valid table or not
     def is_area_valid_table(self, row1_position, row2_position):
         img_between_rows = self.image[row1_position:row2_position, :]
         # looking for vertical line between two row positions
@@ -244,7 +230,7 @@ class Image2Csv_CL:
             return True
         else:
             return False
-
+    # Get top&bottom line position of a table based on row positions. 
     def get_tables_position(self, row_positions):
         row1_positions, row2_positions = row_positions[:-1], row_positions[1:]
         # Get boolean values of wheter an area is table or not, [T,F] means (position1,position2) is valid while (position2, position3) invalid
@@ -286,7 +272,7 @@ class Image2Csv_CL:
             g = plt.figure(figsize = fig_size)
             plt.imshow(self.image[ value[0]:value[-1] ], cmap='gray')
             plt.show()
-    
+    # Get tables position, one key correspond to one table row positions
     def set_tables_dict(self):
         row_positions = self.determine_spike_position_row(self.row_vals)
         try:
