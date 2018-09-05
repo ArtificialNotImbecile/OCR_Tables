@@ -308,10 +308,10 @@ def pdf2image(path, pages, gray_scale=True):
         imgs = convert_from_path(path, 300, fmt='png', first_page=pages[0]+1, last_page=pages[-1]+1)
     im_list = [np.array(imgs[i])/255 for i in range(len(imgs))]
     if not gray_scale:
-    	return im_list
+        return im_list
     else:
-	    im_gray_list = [rgb2gray(im) for im in im_list]
-	    return im_gray_list
+        im_gray_list = [rgb2gray(im) for im in im_list]
+        return im_gray_list
 
 if __name__ == '__main__':
     pass
